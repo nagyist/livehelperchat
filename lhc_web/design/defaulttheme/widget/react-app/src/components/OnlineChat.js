@@ -145,7 +145,25 @@ class OnlineChat extends Component {
         });
     }
 
+    isSpeechRecognitionSupported() {
+        return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    }
+
+    canUseVoiceMessage() {
+        const voiceEngine = this.props.chatwidget.getIn(['chat_ui','voice_engine']);
+
+        if (voiceEngine == 1) {
+            return this.isSpeechRecognitionSupported();
+        }
+
+        return typeof window.Audio !== "undefined";
+    }
+
     startVoiceRecording() {
+        if (!this.canUseVoiceMessage()) {
+            return;
+        }
+
         this.setState({voiceMode: true});
     }
 
@@ -1283,11 +1301,11 @@ class OnlineChat extends Component {
 
                                     {this.state.voiceMode === true && <Suspense fallback="..."><VoiceMessage voice_engine={this.props.chatwidget.getIn(['chat_ui','voice_engine']) } setText={(text) => this.setState({value: text})} onCompletion={this.updateMessages} progress={this.setStatusText} base_url={this.props.chatwidget.get('base_url')} chat_id={this.props.chatwidget.getIn(['chatData','id'])} hash={this.props.chatwidget.getIn(['chatData','hash'])} maxSeconds={this.props.chatwidget.getIn(['chat_ui','voice_message'])} cancel={this.cancelVoiceRecording} lang={this.props.chatwidget.getIn(['chat_ui','speech_lang'])} /></Suspense>}
 
-                                    {(!this.props.chatwidget.hasIn(['chatLiveData','msg_to_store']) || this.props.chatwidget.getIn(['chatLiveData','msg_to_store']).size == 0) && !this.props.chatwidget.getIn(['chatLiveData','lock_send']) && this.props.chatwidget.hasIn(['chat_ui','voice_message']) && typeof window.Audio !== "undefined" && (this.state.value.length == 0 && this.state.previewFiles.length == 0) && this.state.voiceMode === false && <a tabIndex="0" onKeyPress={(e) => { e.key === "Enter" ? this.startVoiceRecording() : '' }} onClick={this.startVoiceRecording} title={t('button.record_voice')}>
+                                                {(!this.props.chatwidget.hasIn(['chatLiveData','msg_to_store']) || this.props.chatwidget.getIn(['chatLiveData','msg_to_store']).size == 0) && !this.props.chatwidget.getIn(['chatLiveData','lock_send']) && this.props.chatwidget.hasIn(['chat_ui','voice_message']) && this.canUseVoiceMessage() && (this.state.value.length == 0 && this.state.previewFiles.length == 0) && this.state.voiceMode === false && <a tabIndex="0" onKeyPress={(e) => { e.key === "Enter" ? this.startVoiceRecording() : '' }} onClick={this.startVoiceRecording} title={t('button.record_voice')}>
                                        <i className="record-icon material-icons text-muted settings me-0">&#xf10b;</i>
                                     </a>}
 
-                                    {(!this.props.chatwidget.hasIn(['chatLiveData','msg_to_store']) || this.props.chatwidget.getIn(['chatLiveData','msg_to_store']).size == 0) && !this.props.chatwidget.getIn(['chatLiveData','lock_send']) && (!this.props.chatwidget.hasIn(['chat_ui','voice_message']) || !(typeof window.Audio !== "undefined") || ( (this.state.value.length > 0 || this.state.previewFiles.length > 0) && this.state.voiceMode === false)) && <a tabIndex="0" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); this.sendMessage();}}} onClick={this.sendMessage} title={t('button.send_msg')}>
+                                                {(!this.props.chatwidget.hasIn(['chatLiveData','msg_to_store']) || this.props.chatwidget.getIn(['chatLiveData','msg_to_store']).size == 0) && !this.props.chatwidget.getIn(['chatLiveData','lock_send']) && (!this.props.chatwidget.hasIn(['chat_ui','voice_message']) || !this.canUseVoiceMessage() || ( (this.state.value.length > 0 || this.state.previewFiles.length > 0) && this.state.voiceMode === false)) && <a tabIndex="0" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); this.sendMessage();}}} onClick={this.sendMessage} title={t('button.send_msg')}>
                                        <i className={"send-icon material-icons settings me-0" + (this.state.value.length == 0 && this.state.previewFiles.length == 0 && this.state.voiceMode === false ? ' text-muted-light' : ' text-muted')}>&#xf107;</i>
                                     </a>}
 

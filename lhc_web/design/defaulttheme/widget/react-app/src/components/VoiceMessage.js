@@ -35,6 +35,43 @@ class VoiceMessage extends PureComponent {
         this.durationInterval = null;
         this.playInterval = null;
         this.recognition = null;
+        this.recognitionParts = [];
+        this.androidTranscript = '';
+        this.lastTranscript = '';
+    }
+
+    normalizeSpeechText(text) {
+        return (text || '').replace(/\s+/g, ' ').trim();
+    }
+
+    mergeSpeechText(previous, incoming) {
+        const prev = this.normalizeSpeechText(previous);
+        const next = this.normalizeSpeechText(incoming);
+
+        if (prev === '') return next;
+        if (next === '') return prev;
+        if (next.startsWith(prev)) return next;
+        if (prev.startsWith(next)) return prev;
+        if (next.includes(prev)) return next;
+        if (prev.includes(next)) return prev;
+
+        const prevLower = prev.toLowerCase();
+        const nextLower = next.toLowerCase();
+
+        const maxOverlap = Math.min(prevLower.length, nextLower.length);
+        for (let overlap = maxOverlap; overlap > 0; overlap--) {
+            if (prevLower.slice(prevLower.length - overlap) === nextLower.slice(0, overlap)) {
+                return (prev + ' ' + next.slice(overlap)).replace(/\s+/g, ' ').trim();
+            }
+        }
+
+        return (prev + ' ' + next).replace(/\s+/g, ' ').trim();
+    }
+
+    setParentStatus(text) {
+        if (typeof this.props.progress === 'function') {
+            this.props.progress(text);
+        }
     }
 
     async startRecording() {
@@ -118,50 +155,172 @@ class VoiceMessage extends PureComponent {
 
     startWebkitRecording() {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert('Speech recognition is not supported in your browser!');
-            this.props.cancel();
-            return;
-        }
+        // console.log('[VoiceMessage] startWebkitRecording()', {
+        //     hasSpeechRecognition: !!window.SpeechRecognition,
+        //     hasWebkitSpeechRecognition: !!window.webkitSpeechRecognition,
+        //     userAgent: navigator.userAgent,
+        //     lang: this.props.lang,
+        //     voiceEngine: this.props.voice_engine
+        // });
+
+        const isAndroid = /android/i.test(navigator.userAgent || '');
 
         this.recognition = new SpeechRecognition();
         this.recognition.continuous = true;
         this.recognition.interimResults = true;
+        this.recognition.maxAlternatives = 1;
         if (this.props.lang) {
             this.recognition.lang = this.props.lang;
         }
 
-        this.recognition.onresult = (event) => {
-            let transcript = '';
-            for (let i = 0; i < event.results.length; i++) {
-                transcript += event.results[i][0].transcript;
-            }
-            this.props.setText(transcript);
+        // console.log('[VoiceMessage] recognition configured', {
+        //     continuous: this.recognition.continuous,
+        //     interimResults: this.recognition.interimResults,
+        //     maxAlternatives: this.recognition.maxAlternatives,
+        //     lang: this.recognition.lang,
+        //     isAndroid: isAndroid
+        // });
+
+        this.recognitionParts = [];
+        this.androidTranscript = '';
+        this.lastTranscript = '';
+
+        this.recognition.onstart = () => {
+            // console.log('[VoiceMessage] recognition onstart');
         };
 
-        this.recognition.onerror = () => {
+        this.recognition.onaudiostart = () => {
+            // console.log('[VoiceMessage] recognition onaudiostart');
+        };
+
+        this.recognition.onsoundstart = () => {
+            // console.log('[VoiceMessage] recognition onsoundstart');
+        };
+
+        this.recognition.onspeechstart = () => {
+            // console.log('[VoiceMessage] recognition onspeechstart');
+        };
+
+        this.recognition.onresult = (event) => {
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                this.recognitionParts[i] = {
+                    text: (event.results[i][0].transcript || '').replace(/\s+/g, ' ').trim(),
+                    isFinal: event.results[i].isFinal
+                };
+            }
+
+            const parts = this.recognitionParts
+                .slice(0, event.results.length)
+                .map(part => part && part.text ? part.text : '')
+                .filter(Boolean);
+
+            let transcript = parts
+                .join(' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            // Android engines often duplicate by reporting cumulative text across slots.
+            if (isAndroid) {
+                const longestPart = parts.reduce((longest, current) => {
+                    return current.length > longest.length ? current : longest;
+                }, '');
+
+                const lastPart = parts.length > 0 ? parts[parts.length - 1] : '';
+                const candidate = longestPart.length >= lastPart.length ? longestPart : lastPart;
+
+                this.androidTranscript = this.mergeSpeechText(this.androidTranscript, candidate);
+                transcript = this.androidTranscript;
+            }
+
+            const finalCount = this.recognitionParts
+                .slice(0, event.results.length)
+                .reduce((acc, part) => acc + (part && part.isFinal ? 1 : 0), 0);
+
+            // console.log('[VoiceMessage] recognition onresult', {
+            //     resultIndex: event.resultIndex,
+            //     resultsLength: event.results.length,
+            //     finalCount: finalCount,
+            //     transcriptLength: transcript.length,
+            //     transcriptPreview: transcript.substring(0, 120)
+            // });
+
+            if (transcript !== this.lastTranscript) {
+                this.lastTranscript = transcript;
+                this.props.setText(transcript);
+            } else {
+                // console.log('[VoiceMessage] transcript unchanged, skipping setText');
+            }
+        };
+
+        this.recognition.onerror = (event) => {
+            console.error('[VoiceMessage] recognition onerror', {
+                error: event && event.error,
+                message: event && event.message,
+                type: event && event.type
+            });
+            this.setParentStatus('Voice recognition error: ' + (event && event.error ? event.error : 'unknown'));
             this.recognition = null;
             this.setState({ isTranscribing: false });
             this.props.cancel();
+          };
+
+        this.recognition.onspeechend = () => {
+            // console.log('[VoiceMessage] recognition onspeechend');
+        };
+
+        this.recognition.onsoundend = () => {
+            // console.log('[VoiceMessage] recognition onsoundend');
+        };
+
+        this.recognition.onaudioend = () => {
+            // console.log('[VoiceMessage] recognition onaudioend');
         };
 
         this.recognition.onend = () => {
+            // console.log('[VoiceMessage] recognition onend');
+            this.setParentStatus('Voice recognition stopped');
             this.recognition = null;
             this.setState({ isTranscribing: false });
             this.props.cancel();
         };
 
-        this.recognition.start();
+        try {
+            this.recognition.start();
+            // console.log('[VoiceMessage] recognition.start() called');
+            this.setParentStatus('Voice recognition active');
+        } catch (err) {
+            console.error('[VoiceMessage] recognition.start() failed', err);
+            this.setParentStatus('Voice recognition failed to start');
+            this.recognition = null;
+            this.setState({ isTranscribing: false });
+            this.props.cancel();
+            return;
+        }
+
         this.setState({ isTranscribing: true });
     }
 
     stopWebkitRecording() {
+        // console.log('[VoiceMessage] stopWebkitRecording()', {
+        //     hasRecognition: !!this.recognition,
+        //     isTranscribing: this.state.isTranscribing
+        // });
         if (this.recognition) {
             this.recognition.onend = null;
             this.recognition.onerror = null;
+            this.recognition.onstart = null;
+            this.recognition.onspeechstart = null;
+            this.recognition.onspeechend = null;
+            this.recognition.onsoundstart = null;
+            this.recognition.onsoundend = null;
+            this.recognition.onaudiostart = null;
+            this.recognition.onaudioend = null;
             this.recognition.stop();
             this.recognition = null;
         }
+        this.recognitionParts = [];
+        this.androidTranscript = '';
+        this.lastTranscript = '';
         this.setState({ isTranscribing: false });
         this.props.cancel();
     }
@@ -182,6 +341,11 @@ class VoiceMessage extends PureComponent {
 
     componentWillUnmount() {
 
+        // console.log('[VoiceMessage] componentWillUnmount()', {
+        //     isRecording: this.state.isRecording,
+        //     hasRecognition: !!this.recognition
+        // });
+
         // Stop playing if anything is playing
         this.stopPlayRecord();
 
@@ -194,9 +358,20 @@ class VoiceMessage extends PureComponent {
         if (this.recognition) {
             this.recognition.onend = null;
             this.recognition.onerror = null;
+            this.recognition.onstart = null;
+            this.recognition.onspeechstart = null;
+            this.recognition.onspeechend = null;
+            this.recognition.onsoundstart = null;
+            this.recognition.onsoundend = null;
+            this.recognition.onaudiostart = null;
+            this.recognition.onaudioend = null;
             this.recognition.stop();
             this.recognition = null;
         }
+
+        this.recognitionParts = [];
+        this.androidTranscript = '';
+        this.lastTranscript = '';
     }
 
     pad(n) {
@@ -211,7 +386,7 @@ class VoiceMessage extends PureComponent {
 
         if (this.props.voice_engine == 1) {
             return <div className="text-nowrap voice-message-container">
-                <button type="button" tabIndex="0" className={"material-icons material-icons-button fs25 pointer me-0 " + (isTranscribing ? 'text-danger' : 'text-muted')} title={isTranscribing ? t('voice.stop_recording') : t('voice.record_voice_message')} onClick={this.toggleWebkitRecording}>&#xf10b;</button>
+                <button type="button" tabIndex="0" className={"material-icons material-icons-button fs25 pointer me-0 " + (isTranscribing ? 'text-danger message-row-typing' : 'text-muted')} title={isTranscribing ? t('voice.stop_recording') : t('voice.record_voice_message')} onClick={this.toggleWebkitRecording}>&#xf10b;</button>
             </div>;
         }
 
