@@ -96,7 +96,16 @@ class StartChat extends Component {
             return;
         }
 
-        this.setState({voiceMode: true});
+        this.setState({voiceMode: true}, () => {
+            if (
+                this.props.chatwidget.get('isMobile') === false &&
+                this.props.chatwidget.getIn(['chat_ui', 'voice_engine']) == 1 &&
+                this.textMessageRef &&
+                this.textMessageRef.current
+            ) {
+                this.textMessageRef.current.focus();
+            }
+        });
     }
 
     cancelVoiceRecording() {
