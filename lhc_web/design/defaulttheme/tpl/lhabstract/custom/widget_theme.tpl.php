@@ -670,6 +670,10 @@
                             <label><?php echo erLhcoreClassAbstract::renderInput('fa_direct', $fields['fa_direct'], $object)?> <?php echo $fields['fa_direct']['trans'];?></label>
                         </div>
 
+                        <div class="form-group">
+                            <label><?php echo erLhcoreClassAbstract::renderInput('no_voice_messages', $fields['no_voice_messages'], $object)?> <?php echo $fields['no_voice_messages']['trans'];?></label>
+                        </div>
+
                         <div class="bg-light p-2 border mb-2">
                             <h4 class="fs16"><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchatformsettings','Migrated from start chat form');?></h4>
 

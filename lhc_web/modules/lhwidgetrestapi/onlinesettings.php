@@ -78,7 +78,11 @@ if (isset($requestPayload['theme']) && !empty($requestPayload['theme'])) {
 
 $fileData = (array)erLhcoreClassModelChatConfig::fetch('file_configuration')->data;
 
-if (isset($fileData['sound_messages']) && $fileData['sound_messages'] == true && isset($fileData['sound_messages_engine']) && is_numeric($fileData['sound_messages_engine']) && $fileData['sound_messages_engine'] == 1) {
+if (
+isset($fileData['sound_messages']) && $fileData['sound_messages'] == true && 
+isset($fileData['sound_messages_engine']) && is_numeric($fileData['sound_messages_engine']) && $fileData['sound_messages_engine'] == 1 &&
+!($theme instanceof erLhAbstractModelWidgetTheme && isset($theme->bot_configuration_array['no_voice_messages']) && $theme->bot_configuration_array['no_voice_messages'] == true)
+) {
     $chat_ui['voice_message'] = $fileData['sound_length'];
     $chat_ui['voice_engine'] = 1;
     $chat_ui['speech_lang'] = str_replace('_','-',erConfigClassLhConfig::getInstance()->getDirLanguage('locale'));
