@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import { connect } from "react-redux";
 import { withTranslation } from 'react-i18next';
+import { Suspense } from 'react';
 
 import ChatField from './ChatField';
 import ChatErrorList from './ChatErrorList';
@@ -14,6 +15,8 @@ import ChatAbort from './ChatAbort';
 import SharedTextarea from './SharedTextarea';
 
 import { initOnlineForm, submitOnlineForm, minimizeWidget, initProactive } from "../actions/chatActions"
+
+const VoiceMessage = React.lazy(() => import('./VoiceMessage'));
 
 class ChatStatusContainer extends React.PureComponent {
     render() {
@@ -45,7 +48,7 @@ class StartChat extends Component {
         this.apiLoaded = false;
         this.customHTMLPriority = false;
 
-        this.state = {showBBCode : null, Question:'', changeLanguage: false, hasBotData : false, textAreaHidden: false};
+        this.state = {showBBCode : null, Question:'', changeLanguage: false, hasBotData : false, textAreaHidden: false, voiceMode: false};
         this.botPayload = null;
         this.handleSubmit = this.handleSubmit.bind(this);
         this.enterKeyDown = this.enterKeyDown.bind(this);
@@ -55,11 +58,49 @@ class StartChat extends Component {
         this.toggleModal = this.toggleModal.bind(this);
         this.setLanguageAction = this.setLanguageAction.bind(this);
         this.changeLanguage = this.changeLanguage.bind(this);
+        this.startVoiceRecording = this.startVoiceRecording.bind(this);
+        this.cancelVoiceRecording = this.cancelVoiceRecording.bind(this);
+        this.keyUp = this.keyUp.bind(this);
 
         this.textMessageRef = this.props.textMessageRef; /*React.createRef();*/
         this.messagesAreaRef = React.createRef();
         
         helperFunctions.eventEmitter.addListener('startChat', () => this.handleSubmit());
+    }
+
+    keyUp(e) {
+        if (e.key !== 'Enter' && !e.shiftKey) {
+            if (this.state.voiceMode) {
+                this.cancelVoiceRecording();
+            }
+        }
+    }
+
+    isSpeechRecognitionSupported() {
+        return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    }
+
+    canUseVoiceMessage() {
+        const voiceEngine = this.props.chatwidget.getIn(['chat_ui','voice_engine']);
+
+        if (voiceEngine == 1) {
+            return this.isSpeechRecognitionSupported();
+        }
+
+        return typeof window.Audio !== "undefined";
+    }
+
+
+    startVoiceRecording() {
+        if (!this.canUseVoiceMessage()) {
+            return;
+        }
+
+        this.setState({voiceMode: true});
+    }
+
+    cancelVoiceRecording() {
+        this.setState({voiceMode: false});
     }
 
     changeLanguage() {
@@ -622,6 +663,7 @@ class StartChat extends Component {
                                         onTextChange={(e) => {this.handleContentChange({'id' : 'Question' ,'value' : e.target.value});if (this.props.chatwidget.hasIn(['validationErrors','question'])){this.props.dispatch({'type' : 'validationErrors', data : {}});}}}
                                         onTextKeyDown={this.enterKeyDown}
                                         onTextFocus={this.moveCaretAtEnd}
+                                        onTextKeyUp={this.keyUp}
                                         classNameText={classMessageInput}
                                         textPlaceholder={this.props.chatwidget.hasIn(['chat_ui','placeholder_message']) ? this.props.chatwidget.getIn(['chat_ui','placeholder_message']) : t('chat.type_here')}
                                         textareaRef={this.props.textMessageRef}
@@ -630,7 +672,13 @@ class StartChat extends Component {
                                 </div>
                                 <div className="disable-select d-flex flex-column justify-content-end align-items-stretch" id="send-button-wrapper">
                                     <div className="user-chatwidget-buttons" id="ChatSendButtonContainer">
-                                        {this.props.chatwidget.get('processStatus') != 1 && <a tabIndex="0" onKeyPress={(e) => { e.key === "Enter" ? this.handleSubmit() : '' }} onClick={this.handleSubmit} title={t('button.start_chat')}>
+                                        {this.props.chatwidget.get('processStatus') != 1 && this.props.chatwidget.getIn(['chat_ui','voice_engine']) == 1 && this.canUseVoiceMessage() && this.state.voiceMode === true && <Suspense fallback="..."><VoiceMessage voice_engine={this.props.chatwidget.getIn(['chat_ui','voice_engine']) } setText={(text) => this.handleContentChange({'id' : 'Question' ,'value' : text})} onCompletion={() => {}} progress={() => {}} base_url={this.props.chatwidget.get('base_url')} chat_id={0} hash={''} maxSeconds={this.props.chatwidget.getIn(['chat_ui','voice_message'])} cancel={this.cancelVoiceRecording} lang={this.props.chatwidget.getIn(['chat_ui','speech_lang'])} /></Suspense>}
+
+                                        {this.props.chatwidget.get('processStatus') != 1 && this.props.chatwidget.getIn(['chat_ui','voice_engine']) == 1 && this.canUseVoiceMessage() && this.state.Question.length == 0 && this.state.voiceMode === false && <a tabIndex="0" onKeyPress={(e) => { e.key === "Enter" ? this.startVoiceRecording() : '' }} onClick={this.startVoiceRecording} title={t('voice.dictate')}>
+                                            <i className="record-icon material-icons text-muted settings me-0">&#xf10b;</i>
+                                        </a>}
+
+                                        {this.props.chatwidget.get('processStatus') != 1 && (this.props.chatwidget.getIn(['chat_ui','voice_engine']) != 1 || !this.canUseVoiceMessage() || (this.state.Question.length > 0 && this.state.voiceMode === false)) && <a tabIndex="0" onKeyPress={(e) => { e.key === "Enter" ? this.handleSubmit() : '' }} onClick={this.handleSubmit} title={t('button.start_chat')}>
                                             <i className={"send-icon material-icons settings" + (this.state.Question.length == 0 ? ' text-muted-light' : ' text-muted')}>&#xf107;</i>
                                         </a>}
 

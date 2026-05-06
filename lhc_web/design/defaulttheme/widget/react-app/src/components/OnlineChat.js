@@ -841,6 +841,10 @@ class OnlineChat extends Component {
 
     keyUp(e) {
         if (e.key !== 'Enter' && !e.shiftKey) {
+            if (this.state.voiceMode) {
+                this.cancelVoiceRecording();
+            }
+
             if (this.isTyping === false) {
                 const { t } = this.props;
                 this.isTyping = true;
@@ -1299,9 +1303,9 @@ class OnlineChat extends Component {
 
                                 <div className="user-chatwidget-buttons pe-1" id="ChatSendButtonContainer">
 
-                                    {this.state.voiceMode === true && <Suspense fallback="..."><VoiceMessage voice_engine={this.props.chatwidget.getIn(['chat_ui','voice_engine']) } setText={(text) => this.setState({value: text})} onCompletion={this.updateMessages} progress={this.setStatusText} base_url={this.props.chatwidget.get('base_url')} chat_id={this.props.chatwidget.getIn(['chatData','id'])} hash={this.props.chatwidget.getIn(['chatData','hash'])} maxSeconds={this.props.chatwidget.getIn(['chat_ui','voice_message'])} cancel={this.cancelVoiceRecording} lang={this.props.chatwidget.getIn(['chat_ui','speech_lang'])} /></Suspense>}
+                                    {this.state.voiceMode === true && <Suspense fallback="..."><VoiceMessage voice_engine={this.props.chatwidget.getIn(['chat_ui','voice_engine'])} setText={(text) => this.setState({value: text})} onCompletion={this.updateMessages} progress={this.setStatusText} base_url={this.props.chatwidget.get('base_url')} chat_id={this.props.chatwidget.getIn(['chatData','id'])} hash={this.props.chatwidget.getIn(['chatData','hash'])} maxSeconds={this.props.chatwidget.getIn(['chat_ui','voice_message'])} cancel={this.cancelVoiceRecording} lang={this.props.chatwidget.getIn(['chat_ui','speech_lang'])} /></Suspense>}
 
-                                                {(!this.props.chatwidget.hasIn(['chatLiveData','msg_to_store']) || this.props.chatwidget.getIn(['chatLiveData','msg_to_store']).size == 0) && !this.props.chatwidget.getIn(['chatLiveData','lock_send']) && this.props.chatwidget.hasIn(['chat_ui','voice_message']) && this.canUseVoiceMessage() && (this.state.value.length == 0 && this.state.previewFiles.length == 0) && this.state.voiceMode === false && <a tabIndex="0" onKeyPress={(e) => { e.key === "Enter" ? this.startVoiceRecording() : '' }} onClick={this.startVoiceRecording} title={t('button.record_voice')}>
+                                                {(!this.props.chatwidget.hasIn(['chatLiveData','msg_to_store']) || this.props.chatwidget.getIn(['chatLiveData','msg_to_store']).size == 0) && !this.props.chatwidget.getIn(['chatLiveData','lock_send']) && this.props.chatwidget.hasIn(['chat_ui','voice_message']) && this.canUseVoiceMessage() && (this.state.value.length == 0 && this.state.previewFiles.length == 0) && this.state.voiceMode === false && <a tabIndex="0" onKeyPress={(e) => { e.key === "Enter" ? this.startVoiceRecording() : '' }} onClick={this.startVoiceRecording} title={this.props.chatwidget.getIn(['chat_ui','voice_engine']) != 1 ? t('button.record_voice') : t('voice.dictate')}>
                                        <i className="record-icon material-icons text-muted settings me-0">&#xf10b;</i>
                                     </a>}
 
