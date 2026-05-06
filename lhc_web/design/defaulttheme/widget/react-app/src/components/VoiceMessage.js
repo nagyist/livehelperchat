@@ -278,7 +278,7 @@ class VoiceMessage extends PureComponent {
 
         this.recognition.onend = () => {
             // console.log('[VoiceMessage] recognition onend');
-            this.setParentStatus('Voice recognition stopped');
+            // this.setParentStatus('Voice recognition stopped');
             this.recognition = null;
             this.setState({ isTranscribing: false });
             this.props.cancel();
@@ -287,7 +287,7 @@ class VoiceMessage extends PureComponent {
         try {
             this.recognition.start();
             // console.log('[VoiceMessage] recognition.start() called');
-            this.setParentStatus('Voice recognition active');
+            // this.setParentStatus('Voice recognition active');
         } catch (err) {
             console.error('[VoiceMessage] recognition.start() failed', err);
             this.setParentStatus('Voice recognition failed to start');
@@ -386,7 +386,7 @@ class VoiceMessage extends PureComponent {
 
         if (this.props.voice_engine == 1) {
             return <div className="text-nowrap voice-message-container">
-                <button type="button" tabIndex="0" className={"material-icons material-icons-button fs25 pointer me-0 " + (isTranscribing ? 'text-danger message-row-typing' : 'text-muted')} title={isTranscribing ? t('voice.stop_recording') : t('voice.record_voice_message')} onClick={this.toggleWebkitRecording}>&#xf10b;</button>
+                <button type="button" tabIndex="0" className={"material-icons material-icons-button fs25 pointer me-0 " + (isTranscribing ? 'text-danger message-row-typing' : 'text-muted')} title={isTranscribing ? t('voice.stop_dictate') : t('voice.dictate')} onClick={this.toggleWebkitRecording}>&#xf10b;</button>
             </div>;
         }
 

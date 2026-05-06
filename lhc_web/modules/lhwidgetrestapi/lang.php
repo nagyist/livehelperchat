@@ -97,11 +97,13 @@ $translations = array(
     ],
     "voice" => [
         "cancel_voice_message" => erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat', 'Cancel voice message'),
-        "record_voice_message" =>  erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat', 'Record voice message'),
-        "stop_recording" =>  erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat', 'Stop recording'),
-        "play_recorded" =>  erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat', 'Play recorded message'),
-        "stop_playing_recorded" =>  erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat', 'Stop playing recorded audio'),
-        "send" =>  erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat', 'Send voice message')
+        "record_voice_message" => erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat', 'Record voice message'),
+        "stop_recording" => erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat', 'Stop recording'),
+        "play_recorded" => erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat', 'Play recorded message'),
+        "stop_playing_recorded" => erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat', 'Stop playing recorded audio'),
+        "send" => erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat', 'Send voice message'),
+        "dictate" => erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat', 'Dictate'),
+        "stop_dictate" => erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat', 'Stop')
     ]
 );
 
